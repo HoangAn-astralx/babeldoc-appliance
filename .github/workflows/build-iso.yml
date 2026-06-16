@@ -19,10 +19,10 @@ jobs:
           sudo apt-get install -y \
             live-build \
             xorriso \
-            isolinux \
-            syslinux-common \
             squashfs-tools \
-            debootstrap
+            debootstrap \
+            grub-pc \
+            grub-efi
 
       - name: Setup build directory
         run: |
@@ -57,7 +57,9 @@ jobs:
             --binary-images iso-hybrid \
             --archive-areas "main restricted universe multiverse" \
             --bootappend-live "boot=live components quiet splash" \
-            --syslinux-theme ""
+            --bootloader "grub" \
+            --memtest none \
+            --win32-loader false
 
       - name: Build ISO
         working-directory: /tmp/lb-build
