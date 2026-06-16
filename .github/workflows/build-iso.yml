@@ -23,8 +23,7 @@ jobs:
             debootstrap \
             grub-pc-bin \
             grub-efi-amd64-bin \
-            mtools \
-            syslinux-utils
+            mtools
 
       - name: Setup build directory
         run: |
@@ -37,7 +36,7 @@ jobs:
           sudo lb config \
             --distribution jammy \
             --architectures amd64 \
-            --binary-images iso-hybrid \
+            --binary-images iso \
             --archive-areas "main restricted universe multiverse" \
             --bootappend-live "boot=live components quiet splash" \
             --linux-packages "linux-image linux-headers" \
