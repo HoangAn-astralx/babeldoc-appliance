@@ -1,90 +1,103 @@
 #!/bin/bash
+# Hook này chạy bên trong chroot khi live-build đang build ISO
 set -e
 
-echo "=== [HOOK] Create user babeldoc ==="
-useradd -m -s /bin/bash babeldoc
+echo "=== [HOOK] Tạo user babeldoc ==="
+useradd -m -s /bin/bash babeldoc || true
 usermod -aG docker babeldoc
 
-echo "=== [HOOK] Permissions ==="
-chown -R babeldoc:babeldoc /opt/babeldoc-web
-chmod +x /usr/local/bin/openbox-kiosk.sh
+echo "=== [HOOK] Phân quyền thư mục app ==="
+chown -R babeldoc:babeldoc /opt/babeldoc-web 2>/dev/null || true
+chmod +x /usr/local/bin/openbox-kiosk.sh 2>/dev/null || true
 
-echo "=== [HOOK] Enable services ==="
+echo "=== [HOOK] Tạo script cài NVIDIA sau khi boot lần đầu ==="
+cat > /usr/local/bin/install-nvidia-docker.sh << 'NVIDIA_SCRIPT'
+#!/bin/bash
+# Script này chạy tự động lần đầu boot trên DGX
+set -e
+echo "Cài NVIDIA Container Toolkit..."
+curl -fsSL https://nvidia.github.io/libnvidia-container/gpgkey | \
+    gpg --dearmor -o /usr/share/keyrings/nvidia-container-toolkit-keyring.gpg
+curl -s -L https://nvidia.github.io/libnvidia-container/stable/deb/nvidia-container-toolkit.list | \
+    sed 's#deb https://#deb [signed-by=/usr/share/keyrings/nvidia-container-toolkit-keyring.gpg] https://#g' | \
+    tee /etc/apt/sources.list.d/nvidia-container-toolkit.list
+apt-get update
+apt-get install -y nvidia-container-toolkit
+nvidia-ctk runtime configure --runtime=docker
+systemctl restart docker
+echo "NVIDIA Container Toolkit đã cài xong"
+# Tự xoá service sau khi chạy xong
+systemctl disable nvidia-docker-setup
+rm /etc/systemd/system/nvidia-docker-setup.service
+NVIDIA_SCRIPT
+chmod +x /usr/local/bin/install-nvidia-docker.sh
+
+echo "=== [HOOK] Tạo one-shot service cài NVIDIA sau boot ==="
+cat > /etc/systemd/system/nvidia-docker-setup.service << 'SVC'
+[Unit]
+Description=Cài NVIDIA Container Toolkit (chạy 1 lần)
+After=network-online.target docker.service
+Wants=network-online.target
+ConditionPathExists=!/etc/nvidia-docker-setup-done
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/install-nvidia-docker.sh
+ExecStartPost=/bin/touch /etc/nvidia-docker-setup-done
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
+SVC
+
+echo "=== [HOOK] Enable các service ==="
 systemctl enable docker
 systemctl enable babeldoc.service
 systemctl enable babeldoc-x11.service
-systemctl enable babeldoc-kiosk.service
+systemctl enable nvidia-docker-setup.service
 
-echo "=== [HOOK] Disable unnecessary services ==="
-systemctl disable snapd           2>/dev/null || true
-systemctl disable snapd.socket    2>/dev/null || true
-systemctl disable ModemManager    2>/dev/null || true
-systemctl disable cups            2>/dev/null || true
-systemctl disable cups-browsed    2>/dev/null || true
-systemctl disable avahi-daemon    2>/dev/null || true
-systemctl disable bluetooth       2>/dev/null || true
+echo "=== [HOOK] Tắt service thừa ==="
+systemctl disable snapd            2>/dev/null || true
+systemctl disable snapd.socket     2>/dev/null || true
+systemctl disable ModemManager     2>/dev/null || true
+systemctl disable cups             2>/dev/null || true
+systemctl disable cups-browsed     2>/dev/null || true
+systemctl disable avahi-daemon     2>/dev/null || true
+systemctl disable bluetooth        2>/dev/null || true
 systemctl disable unattended-upgrades 2>/dev/null || true
 
-echo "=== [HOOK] Mask sleep ==="
-systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+echo "=== [HOOK] Mask sleep/suspend ==="
+systemctl mask \
+    sleep.target \
+    suspend.target \
+    hibernate.target \
+    hybrid-sleep.target
 
-echo "=== [HOOK] Logind config ==="
-cat >> /etc/systemd/logind.conf << 'EOF'
+echo "=== [HOOK] Cấu hình logind không sleep ==="
+cat >> /etc/systemd/logind.conf << 'LOGIND'
 HandleLidSwitch=ignore
 HandleLidSwitchExternalPower=ignore
 IdleAction=ignore
 IdleActionSec=0
-EOF
+LOGIND
 
 echo "=== [HOOK] GRUB kernel params ==="
 sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash nowatchdog"/' \
     /etc/default/grub 2>/dev/null || true
 
-echo "=== [HOOK] NVIDIA GPU persistence mode (if GPU present) ==="
-cat > /etc/systemd/system/nvidia-persistenced.service << 'EOF'
-[Unit]
-Description=NVIDIA Persistence Daemon
-After=syslog.target
-
-[Service]
-Type=forking
-ExecStart=/usr/bin/nvidia-persistenced
-ExecStopPost=/bin/sh -c '/bin/echo "/proc/driver/nvidia/suspend" | sudo tee /sys/power/pm_test'
-Restart=always
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
 echo "=== [HOOK] Firewall rules ==="
 mkdir -p /etc/ufw
-cat > /etc/ufw/user.rules << 'EOF'
+cat > /etc/ufw/user.rules << 'UFW'
 *filter
 :ufw-user-input - [0:0]
 :ufw-user-output - [0:0]
 :ufw-user-forward - [0:0]
-:ufw-before-logging-input - [0:0]
-:ufw-before-logging-output - [0:0]
-:ufw-before-logging-forward - [0:0]
-:ufw-user-logging-input - [0:0]
-:ufw-user-logging-output - [0:0]
-:ufw-user-logging-forward - [0:0]
-:ufw-after-logging-input - [0:0]
-:ufw-after-logging-output - [0:0]
-:ufw-after-logging-forward - [0:0]
-:ufw-logging-deny - [0:0]
-:ufw-logging-allow - [0:0]
-:ufw-user-limit - [0:0]
-:ufw-user-limit-accept - [0:0]
 ### RULES ###
-### tuple ### allow tcp 22 0.0.0.0/0 any 0.0.0.0/0 in
 -A ufw-user-input -p tcp --dport 22 -j ACCEPT
-### tuple ### allow tcp 3000 0.0.0.0/0 any 0.0.0.0/0 in
 -A ufw-user-input -p tcp --dport 3000 -j ACCEPT
-### tuple ### allow tcp 8088 0.0.0.0/0 any 0.0.0.0/0 in
 -A ufw-user-input -p tcp --dport 8088 -j ACCEPT
 ### END RULES ###
 COMMIT
-EOF
+UFW
 
-echo "=== [HOOK] Setup complete ==="
+echo "=== [HOOK] Hoàn tất setup ==="
