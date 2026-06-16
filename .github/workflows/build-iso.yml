@@ -28,19 +28,6 @@ jobs:
           sudo mkdir -p /tmp/lb-build
           sudo cp -r lb-config/config /tmp/lb-build/
 
-      - name: Install isohybrid into chroot (Debian syslinux-utils)
-        run: |
-          set -ex
-          cd /tmp
-          curl -sSL -o syslinux-utils.deb \
-            "https://ftp.debian.org/debian/pool/main/s/syslinux/syslinux-utils_6.04~git20190206.bf6db5b4+dfsg1-3+b1_amd64.deb"
-          mkdir -p su-extract
-          dpkg-deb -x syslinux-utils.deb su-extract
-          sudo mkdir -p /tmp/lb-build/config/includes.chroot/usr/local/bin
-          sudo cp su-extract/usr/bin/isohybrid /tmp/lb-build/config/includes.chroot/usr/local/bin/
-          echo "isohybrid placed in includes.chroot:"
-          ls -la /tmp/lb-build/config/includes.chroot/usr/local/bin/
-
       - name: Inject .env secrets
         run: |
           sudo tee /tmp/lb-build/config/includes.chroot/opt/babeldoc-web/.env > /dev/null << EOF
@@ -66,7 +53,7 @@ jobs:
           sudo lb config \
             --distribution jammy \
             --architectures amd64 \
-            --binary-images iso-hybrid \
+            --binary-images iso \
             --archive-areas "main restricted universe multiverse" \
             --bootappend-live "boot=live components quiet splash" \
             --linux-packages "linux-image linux-headers" \
