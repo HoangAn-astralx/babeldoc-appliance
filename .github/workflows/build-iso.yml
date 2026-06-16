@@ -23,18 +23,23 @@ jobs:
             debootstrap \
             mtools
 
-      - name: Install isohybrid (Debian syslinux-utils)
-        run: |
-          wget -q -O /tmp/syslinux-utils.deb \
-            https://ftp.debian.org/debian/pool/main/s/syslinux/syslinux-utils_6.04~git20190206.bf6db5b4+dfsg1-3+b1_amd64.deb
-          mkdir -p /tmp/syslinux-utils-extract
-          dpkg-deb -x /tmp/syslinux-utils.deb /tmp/syslinux-utils-extract
-          sudo cp /tmp/syslinux-utils-extract/usr/bin/isohybrid /usr/local/bin/
-
       - name: Setup build directory
         run: |
           sudo mkdir -p /tmp/lb-build
           sudo cp -r lb-config/config /tmp/lb-build/
+
+      - name: Install isohybrid into chroot (Debian syslinux-utils)
+        run: |
+          set -ex
+          cd /tmp
+          curl -sSL -o syslinux-utils.deb \
+            "https://ftp.debian.org/debian/pool/main/s/syslinux/syslinux-utils_6.04~git20190206.bf6db5b4+dfsg1-3+b1_amd64.deb"
+          mkdir -p su-extract
+          dpkg-deb -x syslinux-utils.deb su-extract
+          sudo mkdir -p /tmp/lb-build/config/includes.chroot/usr/local/bin
+          sudo cp su-extract/usr/bin/isohybrid /tmp/lb-build/config/includes.chroot/usr/local/bin/
+          echo "isohybrid placed in includes.chroot:"
+          ls -la /tmp/lb-build/config/includes.chroot/usr/local/bin/
 
       - name: Inject .env secrets
         run: |
