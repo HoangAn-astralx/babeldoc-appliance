@@ -24,7 +24,7 @@ jobs:
             grub-pc-bin \
             grub-efi-amd64-bin \
             mtools \
-            syslinux-common
+            syslinux-utils
 
       - name: Setup build directory
         run: |
