@@ -23,7 +23,8 @@ jobs:
             debootstrap \
             grub-pc-bin \
             grub-efi-amd64-bin \
-            mtools
+            mtools \
+            syslinux-common
 
       - name: Setup build directory
         run: |
