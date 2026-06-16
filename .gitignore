@@ -1,0 +1,10 @@
+*.iso
+*.log
+*.tar
+lb-config/binary/
+lb-config/cache/
+lb-config/.build/
+node_modules/
+.next/
+__pycache__/
+*.pyc

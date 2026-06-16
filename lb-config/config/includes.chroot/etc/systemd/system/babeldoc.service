@@ -1,0 +1,17 @@
+[Unit]
+Description=BabelDOC Web
+After=docker.service network-online.target
+Requires=docker.service
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=/opt/babeldoc-web
+ExecStart=/usr/bin/docker compose up
+ExecStop=/usr/bin/docker compose down
+Restart=always
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

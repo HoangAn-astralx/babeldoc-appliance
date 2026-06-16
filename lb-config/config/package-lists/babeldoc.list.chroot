@@ -1,0 +1,13 @@
+docker.io
+docker-compose-v2
+chromium-browser
+curl
+ufw
+openssh-server
+xorg
+openbox
+unclutter
+# NVIDIA drivers (for DGX Spark with GPU)
+nvidia-driver-535
+nvidia-utils-535
+nvidia-container-toolkit

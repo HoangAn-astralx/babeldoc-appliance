@@ -1,0 +1,90 @@
+#!/bin/bash
+set -e
+
+echo "=== [HOOK] Create user babeldoc ==="
+useradd -m -s /bin/bash babeldoc
+usermod -aG docker babeldoc
+
+echo "=== [HOOK] Permissions ==="
+chown -R babeldoc:babeldoc /opt/babeldoc-web
+chmod +x /usr/local/bin/openbox-kiosk.sh
+
+echo "=== [HOOK] Enable services ==="
+systemctl enable docker
+systemctl enable babeldoc.service
+systemctl enable babeldoc-x11.service
+systemctl enable babeldoc-kiosk.service
+
+echo "=== [HOOK] Disable unnecessary services ==="
+systemctl disable snapd           2>/dev/null || true
+systemctl disable snapd.socket    2>/dev/null || true
+systemctl disable ModemManager    2>/dev/null || true
+systemctl disable cups            2>/dev/null || true
+systemctl disable cups-browsed    2>/dev/null || true
+systemctl disable avahi-daemon    2>/dev/null || true
+systemctl disable bluetooth       2>/dev/null || true
+systemctl disable unattended-upgrades 2>/dev/null || true
+
+echo "=== [HOOK] Mask sleep ==="
+systemctl mask sleep.target suspend.target hibernate.target hybrid-sleep.target
+
+echo "=== [HOOK] Logind config ==="
+cat >> /etc/systemd/logind.conf << 'EOF'
+HandleLidSwitch=ignore
+HandleLidSwitchExternalPower=ignore
+IdleAction=ignore
+IdleActionSec=0
+EOF
+
+echo "=== [HOOK] GRUB kernel params ==="
+sed -i 's/GRUB_CMDLINE_LINUX_DEFAULT=.*/GRUB_CMDLINE_LINUX_DEFAULT="quiet splash nowatchdog"/' \
+    /etc/default/grub 2>/dev/null || true
+
+echo "=== [HOOK] NVIDIA GPU persistence mode (if GPU present) ==="
+cat > /etc/systemd/system/nvidia-persistenced.service << 'EOF'
+[Unit]
+Description=NVIDIA Persistence Daemon
+After=syslog.target
+
+[Service]
+Type=forking
+ExecStart=/usr/bin/nvidia-persistenced
+ExecStopPost=/bin/sh -c '/bin/echo "/proc/driver/nvidia/suspend" | sudo tee /sys/power/pm_test'
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "=== [HOOK] Firewall rules ==="
+mkdir -p /etc/ufw
+cat > /etc/ufw/user.rules << 'EOF'
+*filter
+:ufw-user-input - [0:0]
+:ufw-user-output - [0:0]
+:ufw-user-forward - [0:0]
+:ufw-before-logging-input - [0:0]
+:ufw-before-logging-output - [0:0]
+:ufw-before-logging-forward - [0:0]
+:ufw-user-logging-input - [0:0]
+:ufw-user-logging-output - [0:0]
+:ufw-user-logging-forward - [0:0]
+:ufw-after-logging-input - [0:0]
+:ufw-after-logging-output - [0:0]
+:ufw-after-logging-forward - [0:0]
+:ufw-logging-deny - [0:0]
+:ufw-logging-allow - [0:0]
+:ufw-user-limit - [0:0]
+:ufw-user-limit-accept - [0:0]
+### RULES ###
+### tuple ### allow tcp 22 0.0.0.0/0 any 0.0.0.0/0 in
+-A ufw-user-input -p tcp --dport 22 -j ACCEPT
+### tuple ### allow tcp 3000 0.0.0.0/0 any 0.0.0.0/0 in
+-A ufw-user-input -p tcp --dport 3000 -j ACCEPT
+### tuple ### allow tcp 8088 0.0.0.0/0 any 0.0.0.0/0 in
+-A ufw-user-input -p tcp --dport 8088 -j ACCEPT
+### END RULES ###
+COMMIT
+EOF
+
+echo "=== [HOOK] Setup complete ==="

@@ -1,0 +1,51 @@
+services:
+  gateway:
+    build: ./gateway
+    ports:
+      - "8088:8000"
+    environment:
+      - DATA_DIR=/data
+      - API_KEYS=${API_KEYS:-}
+      - TRANSLATION_API_KEY=${TRANSLATION_API_KEY}
+      - TRANSLATION_MODEL=${TRANSLATION_MODEL}
+      - TRANSLATION_BASE_URL=${TRANSLATION_BASE_URL}
+      - OCR_MODEL=${OCR_MODEL:-deepseek-ai/DeepSeek-OCR-2}
+      - CUSTOM_SYSTEM_PROMPT=${CUSTOM_SYSTEM_PROMPT:-}
+      - DEFAULT_LANG_IN=${DEFAULT_LANG_IN:-en}
+      - DEFAULT_LANG_OUT=${DEFAULT_LANG_OUT:-vi}
+      - QPS=${QPS:-4}
+      # RetainPDF route for scanned PDFs
+      - RETAIN_ENABLED=${RETAIN_ENABLED:-1}
+      - RETAIN_BASE_URL=${RETAIN_BASE_URL:-http://host.docker.internal:41000}
+      - RETAIN_API_KEY=${RETAIN_API_KEY:-}
+      - RETAIN_OCR_PROVIDER=${RETAIN_OCR_PROVIDER:-paddle}
+      - RETAIN_PADDLE_TOKEN=${RETAIN_PADDLE_TOKEN:-}
+      - RETAIN_MINERU_TOKEN=${RETAIN_MINERU_TOKEN:-}
+      - SCANNED_ROUTE_THRESHOLD=${SCANNED_ROUTE_THRESHOLD:-0.5}
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    volumes:
+      - babeldoc_data:/data
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request;urllib.request.urlopen('http://127.0.0.1:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  web:
+    build:
+      context: ./web
+      args:
+        - NEXT_PUBLIC_API_KEY=${NEXT_PUBLIC_API_KEY:-}
+        - GATEWAY_URL=http://gateway:8000
+    ports:
+      - "3000:3000"
+    environment:
+      - GATEWAY_URL=http://gateway:8000
+      - NEXT_PUBLIC_API_KEY=${NEXT_PUBLIC_API_KEY:-}
+    depends_on:
+      gateway:
+        condition: service_healthy
+
+volumes:
+  babeldoc_data:

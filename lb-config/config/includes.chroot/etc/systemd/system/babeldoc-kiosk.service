@@ -1,0 +1,26 @@
+[Unit]
+Description=BabelDOC Kiosk (Chromium fullscreen)
+After=babeldoc.service graphical.target
+Wants=graphical.target
+
+[Service]
+User=babeldoc
+Environment=DISPLAY=:0
+Environment=XAUTHORITY=/home/babeldoc/.Xauthority
+
+# Chờ web UI sẵn sàng rồi mở Chromium
+ExecStartPre=/bin/bash -c 'until curl -sf http://localhost:3000 > /dev/null; do sleep 3; done'
+ExecStart=/usr/bin/chromium-browser \
+    --kiosk \
+    --noerrdialogs \
+    --disable-infobars \
+    --no-first-run \
+    --disable-session-crashed-bubble \
+    --disable-restore-session-state \
+    http://localhost:3000
+
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=graphical.target

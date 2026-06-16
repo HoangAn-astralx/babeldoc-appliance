@@ -1,0 +1,92 @@
+name: Build BabelDOC ISO
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v4
+
+      - name: Install live-build & tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            live-build \
+            xorriso \
+            isolinux \
+            syslinux-common \
+            squashfs-tools \
+            dosfstools \
+            mtools \
+            jq
+
+      - name: Inject .env secrets
+        run: |
+          cat > lb-config/config/includes.chroot/opt/babeldoc-web/.env << EOF
+          # LLM translation backend
+          TRANSLATION_API_KEY=${{ secrets.TRANSLATION_API_KEY }}
+          TRANSLATION_MODEL=${{ vars.TRANSLATION_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507-FP8' }}
+          TRANSLATION_BASE_URL=${{ secrets.TRANSLATION_BASE_URL }}
+          OCR_MODEL=${{ vars.OCR_MODEL || 'deepseek-ai/DeepSeek-OCR-2' }}
+
+          # RetainPDF for scanned PDFs
+          RETAIN_ENABLED=${{ vars.RETAIN_ENABLED || '1' }}
+          RETAIN_API_KEY=${{ secrets.RETAIN_API_KEY }}
+          RETAIN_OCR_PROVIDER=${{ vars.RETAIN_OCR_PROVIDER || 'paddle' }}
+          RETAIN_PADDLE_TOKEN=${{ secrets.RETAIN_PADDLE_TOKEN }}
+
+          # System prompt
+          CUSTOM_SYSTEM_PROMPT=/no_think You are a professional, authentic machine translation engine.
+
+          # Defaults
+          DEFAULT_LANG_IN=${{ vars.DEFAULT_LANG_IN || 'en' }}
+          DEFAULT_LANG_OUT=${{ vars.DEFAULT_LANG_OUT || 'vi' }}
+          QPS=${{ vars.QPS || '4' }}
+
+          # API auth
+          API_KEYS=${{ secrets.API_KEYS }}
+          NEXT_PUBLIC_API_KEY=${{ secrets.NEXT_PUBLIC_API_KEY }}
+          EOF
+
+      - name: Build ISO
+        working-directory: lb-config
+        run: |
+          sudo lb config \
+            --distribution jammy \
+            --architectures amd64 \
+            --binary-images iso-hybrid \
+            --archive-areas "main restricted universe multiverse" \
+            --bootappend-live "boot=live components quiet splash" \
+            --debian-installer none \
+            --memtest none \
+            --win32-loader false
+          sudo lb build 2>&1 | tee ../build.log
+
+      - name: Check result
+        run: |
+          echo "=== Build output ==="
+          ls -lh lb-config/*.iso 2>/dev/null || echo "No ISO found"
+          echo ""
+          echo "=== Build log (last 30 lines) ==="
+          tail -30 build.log
+
+      - name: Upload ISO artifact
+        if: success()
+        uses: actions/upload-artifact@v4
+        with:
+          name: babeldoc-ubuntu-iso
+          path: lb-config/*.iso
+          retention-days: 7
+
+      - name: Upload build log (on failure)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log
+          path: build.log
