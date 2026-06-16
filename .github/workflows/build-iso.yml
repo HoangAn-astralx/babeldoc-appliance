@@ -56,7 +56,8 @@ jobs:
             --architectures amd64 \
             --binary-images iso-hybrid \
             --archive-areas "main restricted universe multiverse" \
-            --bootappend-live "boot=live components quiet splash"
+            --bootappend-live "boot=live components quiet splash" \
+            --syslinux-theme ""
 
       - name: Build ISO
         working-directory: /tmp/lb-build
