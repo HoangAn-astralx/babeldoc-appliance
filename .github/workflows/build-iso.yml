@@ -32,7 +32,7 @@ jobs:
 
       - name: Inject .env secrets
         run: |
-          cat > /tmp/lb-build/config/includes.chroot/opt/babeldoc-web/.env << EOF
+          sudo tee /tmp/lb-build/config/includes.chroot/opt/babeldoc-web/.env > /dev/null << EOF
           TRANSLATION_API_KEY=${{ secrets.TRANSLATION_API_KEY }}
           TRANSLATION_MODEL=${{ vars.TRANSLATION_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507-FP8' }}
           TRANSLATION_BASE_URL=${{ secrets.TRANSLATION_BASE_URL }}
