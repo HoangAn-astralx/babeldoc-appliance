@@ -21,8 +21,10 @@ jobs:
             xorriso \
             squashfs-tools \
             debootstrap \
-            grub-pc \
-            grub-efi
+            mtools \
+            dosfstools \
+            grub-pc-bin \
+            grub-efi-amd64-bin
 
       - name: Setup build directory
         run: |
