@@ -21,9 +21,15 @@ jobs:
             xorriso \
             squashfs-tools \
             debootstrap \
-            isolinux \
-            syslinux-common \
             mtools
+
+      - name: Install isohybrid (Debian syslinux-utils)
+        run: |
+          wget -q -O /tmp/syslinux-utils.deb \
+            https://ftp.debian.org/debian/pool/main/s/syslinux/syslinux-utils_6.04~git20190206.bf6db5b4+dfsg1-3+b1_amd64.deb
+          mkdir -p /tmp/syslinux-utils-extract
+          dpkg-deb -x /tmp/syslinux-utils.deb /tmp/syslinux-utils-extract
+          sudo cp /tmp/syslinux-utils-extract/usr/bin/isohybrid /usr/local/bin/
 
       - name: Setup build directory
         run: |
@@ -59,8 +65,7 @@ jobs:
             --archive-areas "main restricted universe multiverse" \
             --bootappend-live "boot=live components quiet splash" \
             --linux-packages "linux-image linux-headers" \
-            --bootloader "syslinux" \
-            --syslinux-theme "" \
+            --bootloader "grub-efi" \
             --memtest none
 
       - name: Build ISO
