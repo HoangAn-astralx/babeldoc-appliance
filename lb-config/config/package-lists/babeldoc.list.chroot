@@ -7,7 +7,13 @@ openssh-server
 xorg
 openbox
 unclutter
-# NVIDIA drivers (for DGX Spark with GPU)
+# Live system
+live-config
+live-boot
+systemd-sysv
+user-setup
+sudo
+# NVIDIA drivers (for DGX Spark with GPU, available in restricted)
 nvidia-driver-535
 nvidia-utils-535
-nvidia-container-toolkit
+# nvidia-container-toolkit needs NVIDIA repo — add via hook if needed
