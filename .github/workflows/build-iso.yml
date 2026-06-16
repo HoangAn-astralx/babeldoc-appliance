@@ -21,8 +21,8 @@ jobs:
             xorriso \
             squashfs-tools \
             debootstrap \
-            grub-pc-bin \
-            grub-efi-amd64-bin \
+            isolinux \
+            syslinux-common \
             mtools
 
       - name: Setup build directory
@@ -30,17 +30,37 @@ jobs:
           sudo mkdir -p /tmp/lb-build
           sudo cp -r lb-config/config /tmp/lb-build/
 
+      - name: Inject .env secrets
+        run: |
+          cat > /tmp/lb-build/config/includes.chroot/opt/babeldoc-web/.env << EOF
+          TRANSLATION_API_KEY=${{ secrets.TRANSLATION_API_KEY }}
+          TRANSLATION_MODEL=${{ vars.TRANSLATION_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507-FP8' }}
+          TRANSLATION_BASE_URL=${{ secrets.TRANSLATION_BASE_URL }}
+          OCR_MODEL=${{ vars.OCR_MODEL || 'deepseek-ai/DeepSeek-OCR-2' }}
+          RETAIN_ENABLED=${{ vars.RETAIN_ENABLED || '1' }}
+          RETAIN_API_KEY=${{ secrets.RETAIN_API_KEY }}
+          RETAIN_OCR_PROVIDER=${{ vars.RETAIN_OCR_PROVIDER || 'paddle' }}
+          RETAIN_PADDLE_TOKEN=${{ secrets.RETAIN_PADDLE_TOKEN }}
+          CUSTOM_SYSTEM_PROMPT=/no_think You are a professional, authentic machine translation engine.
+          DEFAULT_LANG_IN=${{ vars.DEFAULT_LANG_IN || 'en' }}
+          DEFAULT_LANG_OUT=${{ vars.DEFAULT_LANG_OUT || 'vi' }}
+          QPS=${{ vars.QPS || '4' }}
+          API_KEYS=${{ secrets.API_KEYS }}
+          NEXT_PUBLIC_API_KEY=${{ secrets.NEXT_PUBLIC_API_KEY }}
+          EOF
+
       - name: lb config
         working-directory: /tmp/lb-build
         run: |
           sudo lb config \
             --distribution jammy \
             --architectures amd64 \
-            --binary-images iso \
+            --binary-images iso-hybrid \
             --archive-areas "main restricted universe multiverse" \
             --bootappend-live "boot=live components quiet splash" \
             --linux-packages "linux-image linux-headers" \
-            --bootloader "grub-efi" \
+            --bootloader "syslinux" \
+            --syslinux-theme "" \
             --memtest none
 
       - name: Build ISO
