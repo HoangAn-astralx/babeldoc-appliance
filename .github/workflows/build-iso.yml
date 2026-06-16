@@ -40,7 +40,7 @@ jobs:
             --archive-areas "main restricted universe multiverse" \
             --bootappend-live "boot=live components quiet splash" \
             --linux-packages "linux-image linux-headers" \
-            --bootloaders "grub-pc,grub-efi" \
+            --bootloader "grub" \
             --debian-installer none \
             --memtest none
 
