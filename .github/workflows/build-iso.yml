@@ -13,7 +13,7 @@ jobs:
       - name: Checkout repo
         uses: actions/checkout@v4
 
-      - name: Install live-build và tools
+      - name: Install tools
         run: |
           sudo apt-get update
           sudo apt-get install -y \
@@ -21,36 +21,16 @@ jobs:
             xorriso \
             squashfs-tools \
             debootstrap \
-            mtools \
-            dosfstools \
             grub-pc-bin \
-            grub-efi-amd64-bin
+            grub-efi-amd64-bin \
+            mtools
 
       - name: Setup build directory
         run: |
-          mkdir -p /tmp/lb-build
-          cp -r lb-config/config /tmp/lb-build/
+          sudo mkdir -p /tmp/lb-build
+          sudo cp -r lb-config/config /tmp/lb-build/
 
-      - name: Inject .env secrets
-        run: |
-          cat > /tmp/lb-build/config/includes.chroot/opt/babeldoc-web/.env << EOF
-          TRANSLATION_API_KEY=${{ secrets.TRANSLATION_API_KEY }}
-          TRANSLATION_MODEL=${{ vars.TRANSLATION_MODEL || 'Qwen/Qwen3-30B-A3B-Instruct-2507-FP8' }}
-          TRANSLATION_BASE_URL=${{ secrets.TRANSLATION_BASE_URL }}
-          OCR_MODEL=${{ vars.OCR_MODEL || 'deepseek-ai/DeepSeek-OCR-2' }}
-          RETAIN_ENABLED=${{ vars.RETAIN_ENABLED || '1' }}
-          RETAIN_API_KEY=${{ secrets.RETAIN_API_KEY }}
-          RETAIN_OCR_PROVIDER=${{ vars.RETAIN_OCR_PROVIDER || 'paddle' }}
-          RETAIN_PADDLE_TOKEN=${{ secrets.RETAIN_PADDLE_TOKEN }}
-          CUSTOM_SYSTEM_PROMPT=/no_think You are a professional, authentic machine translation engine.
-          DEFAULT_LANG_IN=${{ vars.DEFAULT_LANG_IN || 'en' }}
-          DEFAULT_LANG_OUT=${{ vars.DEFAULT_LANG_OUT || 'vi' }}
-          QPS=${{ vars.QPS || '4' }}
-          API_KEYS=${{ secrets.API_KEYS }}
-          NEXT_PUBLIC_API_KEY=${{ secrets.NEXT_PUBLIC_API_KEY }}
-          EOF
-
-      - name: Chạy lb config
+      - name: lb config
         working-directory: /tmp/lb-build
         run: |
           sudo lb config \
@@ -59,23 +39,19 @@ jobs:
             --binary-images iso-hybrid \
             --archive-areas "main restricted universe multiverse" \
             --bootappend-live "boot=live components quiet splash" \
-            --bootloader "grub" \
-            --memtest none \
-            --win32-loader false
+            --linux-packages "linux-image linux-headers" \
+            --bootloaders "grub-pc,grub-efi" \
+            --debian-installer none \
+            --memtest none
 
       - name: Build ISO
         working-directory: /tmp/lb-build
         run: |
-          set -o pipefail
           sudo lb build 2>&1 | tee /tmp/build.log
 
       - name: Kiểm tra kết quả
         run: |
-          echo "=== Files in build dir ==="
-          ls -lh /tmp/lb-build/
-          echo "=== ISO files ==="
           ls -lh /tmp/lb-build/*.iso 2>/dev/null || echo "Không có ISO"
-          echo "=== Cuối build log ==="
           tail -30 /tmp/build.log
 
       - name: Upload ISO
@@ -85,7 +61,7 @@ jobs:
           path: /tmp/lb-build/*.iso
           retention-days: 7
 
-      - name: Upload build log (luôn upload để debug)
+      - name: Upload build log (luôn upload)
         if: always()
         uses: actions/upload-artifact@v4
         with:
