@@ -102,7 +102,7 @@ jobs:
             '  initrd /casper/initrd.img' \
             '}' | sudo tee /tmp/iso-src/boot/grub/grub.cfg > /dev/null
           # Build hybrid ISO with grub-mkrescue
-          sudo grub-mkrescue -o /tmp/lb-build/babeldoc-bootable.iso /tmp/iso-src -- -V "BabelDOC-Live" 2>&1
+          sudo grub-mkrescue -o /tmp/lb-build/babeldoc-bootable.iso /tmp/iso-src 2>&1
 
       - name: Verify ISO
         run: |
