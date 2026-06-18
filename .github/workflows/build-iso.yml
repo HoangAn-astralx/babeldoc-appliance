@@ -71,11 +71,45 @@ jobs:
         run: |
           sudo lb build 2>&1 | tee /tmp/build.log
 
-      - name: Verify ISO
+      - name: Rebuild ISO with GRUB bootloader (grub-mkrescue)
         run: |
           ISO=$(ls /tmp/lb-build/*.iso 2>/dev/null | head -1)
           if [ -z "$ISO" ]; then
             echo "FAIL: No ISO found"
+            exit 1
+          fi
+          echo "Source ISO: $ISO"
+          # Extract ISO content
+          mkdir -p /tmp/iso-src
+          sudo mount -o loop "$ISO" /mnt
+          sudo cp -a /mnt/. /tmp/iso-src/
+          sudo umount /mnt
+          rm -f "$ISO"
+          # Create GRUB config for live boot
+          mkdir -p /tmp/iso-src/boot/grub
+          cat > /tmp/iso-src/boot/grub/grub.cfg << 'GRUB'
+search --set=root --file /casper/vmlinuz
+set default=0
+set timeout=3
+
+menuentry "BabelDOC Live" {
+  linux /casper/vmlinuz boot=live components quiet splash
+  initrd /casper/initrd.img
+}
+
+menuentry "BabelDOC Live (Safe Graphics)" {
+  linux /casper/vmlinuz boot=live components nomodeset quiet splash
+  initrd /casper/initrd.img
+}
+GRUB
+          # Build hybrid ISO with grub-mkrescue
+          sudo grub-mkrescue -o /tmp/lb-build/babeldoc-bootable.iso /tmp/iso-src -- -V "BabelDOC-Live" 2>&1
+
+      - name: Verify ISO
+        run: |
+          ISO=$(ls /tmp/lb-build/babeldoc-bootable.iso 2>/dev/null | head -1)
+          if [ -z "$ISO" ]; then
+            echo "FAIL: No bootable ISO found"
             exit 1
           fi
           echo "ISO: $ISO"
@@ -87,7 +121,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: babeldoc-ubuntu-iso
-          path: /tmp/lb-build/*.iso
+          path: /tmp/lb-build/babeldoc-bootable.iso
           retention-days: 7
 
       - name: Upload build log

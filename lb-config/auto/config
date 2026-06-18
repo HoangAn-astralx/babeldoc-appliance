@@ -9,10 +9,10 @@ export LB_CONFIG_RUNNING=1
 lb config noauto \
   --distribution jammy \
   --architectures amd64 \
-  --binary-images iso-hybrid \
+  --binary-images iso \
   --archive-areas "main restricted universe multiverse" \
   --bootappend-live "boot=live components quiet splash" \
+  --linux-packages "linux-image linux-headers" \
   --bootloader grub-efi \
-  --debian-installer none \
-  --memtest none \
-  --win32-loader false
+  --debian-installer false \
+  --memtest none
