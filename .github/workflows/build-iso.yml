@@ -21,7 +21,12 @@ jobs:
             xorriso \
             squashfs-tools \
             debootstrap \
-            mtools
+            grub-pc-bin \
+            grub-efi-amd64-bin \
+            grub-common \
+            mtools \
+            isolinux \
+            syslinux-common
 
       - name: Setup build directory
         run: |
@@ -53,11 +58,12 @@ jobs:
           sudo lb config \
             --distribution jammy \
             --architectures amd64 \
-            --binary-images iso \
+            --binary-images iso-hybrid \
             --archive-areas "main restricted universe multiverse" \
             --bootappend-live "boot=live components quiet splash" \
             --linux-packages "linux-image linux-headers" \
-            --bootloader "grub-efi" \
+            --bootloader "grub-pc,grub-efi" \
+            --debian-installer false \
             --memtest none
 
       - name: Build ISO
@@ -65,10 +71,17 @@ jobs:
         run: |
           sudo lb build 2>&1 | tee /tmp/build.log
 
-      - name: Kiểm tra kết quả
+      - name: Verify ISO
         run: |
-          ls -lh /tmp/lb-build/*.iso 2>/dev/null || echo "Không có ISO"
-          tail -30 /tmp/build.log
+          ISO=$(ls /tmp/lb-build/*.iso 2>/dev/null | head -1)
+          if [ -z "$ISO" ]; then
+            echo "FAIL: No ISO found"
+            exit 1
+          fi
+          echo "ISO: $ISO"
+          ls -lh "$ISO"
+          echo "File type:"
+          file "$ISO"
 
       - name: Upload ISO
         uses: actions/upload-artifact@v4
@@ -77,7 +90,7 @@ jobs:
           path: /tmp/lb-build/*.iso
           retention-days: 7
 
-      - name: Upload build log (luôn upload)
+      - name: Upload build log
         if: always()
         uses: actions/upload-artifact@v4
         with:
