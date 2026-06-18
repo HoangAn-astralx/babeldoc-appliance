@@ -84,7 +84,7 @@ jobs:
           sudo mount -o loop "$ISO" /mnt
           sudo cp -a /mnt/. /tmp/iso-src/
           sudo umount /mnt
-          rm -f "$ISO"
+          sudo rm -f "$ISO"
           # Create GRUB config for live boot
           mkdir -p /tmp/iso-src/boot/grub
           printf '%s\n' \
