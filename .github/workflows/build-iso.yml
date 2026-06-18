@@ -86,7 +86,7 @@ jobs:
           sudo umount /mnt
           sudo rm -f "$ISO"
           # Create GRUB config for live boot
-          mkdir -p /tmp/iso-src/boot/grub
+          sudo mkdir -p /tmp/iso-src/boot/grub
           printf '%s\n' \
             'search --set=root --file /casper/vmlinuz' \
             'set default=0' \
@@ -100,7 +100,7 @@ jobs:
             'menuentry "BabelDOC Live (Safe Graphics)" {' \
             '  linux /casper/vmlinuz boot=live components nomodeset quiet splash' \
             '  initrd /casper/initrd.img' \
-            '}' > /tmp/iso-src/boot/grub/grub.cfg
+            '}' | sudo tee /tmp/iso-src/boot/grub/grub.cfg > /dev/null
           # Build hybrid ISO with grub-mkrescue
           sudo grub-mkrescue -o /tmp/lb-build/babeldoc-bootable.iso /tmp/iso-src -- -V "BabelDOC-Live" 2>&1
 
