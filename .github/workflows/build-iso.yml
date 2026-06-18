@@ -26,7 +26,8 @@ jobs:
             grub-common \
             mtools \
             isolinux \
-            syslinux-common
+            syslinux-common \
+            syslinux-utils
 
       - name: Setup build directory
         run: |
@@ -65,6 +66,10 @@ jobs:
             --bootloader "grub-pc,grub-efi" \
             --debian-installer false \
             --memtest none
+
+      - name: Force xorriso (remove genisoimage)
+        run: |
+          sudo apt-get remove -y genisoimage 2>/dev/null || true
 
       - name: Build ISO
         working-directory: /tmp/lb-build
